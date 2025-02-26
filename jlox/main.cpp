@@ -64,25 +64,73 @@ struct T_Token
 
 bool had_error = false;
 
-void print_error(int Line, const char* Where, const char* Message)
+void print_error(const char* Message, int Line)
 {
-   printf("%s:%d - Error: %s\n", Where, Line, Message);
+   printf("Error: %s at Line %d\n", Message, Line);
+   had_error = true;
 }
 
-std::vector<T_Token> scan_tokens(char* String, uint32_t Size)
+void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
 {
    std::vector<T_Token> tokens;
+   uint32_t             start = 0;
+   uint32_t             current = 0;
+   uint32_t             line = 1;
 
-   return tokens;
+   while (current < Size)
+   {
+      switch (String[current])
+      {
+         case '(':
+            Tokens.push_back({ LEFT_PAREN, &String[current], 1, line });
+            break;
+         case ')':
+            Tokens.push_back({ RIGHT_PAREN, &String[current], 1, line });
+            break;
+         case '{':
+            Tokens.push_back({ LEFT_BRACE, &String[current], 1, line });
+            break;
+         case '}':
+            Tokens.push_back({ RIGHT_BRACE, &String[current], 1, line });
+            break;
+         case ',':
+            Tokens.push_back({ COMMA, &String[current], 1, line });
+            break;
+         case '.':
+            Tokens.push_back({ DOT, &String[current], 1, line });
+            break;
+         case '-':
+            Tokens.push_back({ MINUS, &String[current], 1, line });
+            break;
+         case '+':
+            Tokens.push_back({ PLUS, &String[current], 1, line });
+            break;
+         case ';':
+            Tokens.push_back({ SEMICOLON, &String[current], 1, line });
+            break;
+         case '*':
+            Tokens.push_back({ STAR, &String[current], 1, line });
+            break;
+         default:
+            print_error("Unexpected character", line);
+      }
+
+      current++;
+   }
+
+   Tokens.push_back({ END_OF_FILE, nullptr, 0, line });
 }
 
 void run(char* String, uint32_t Size)
 {
-   std::vector<T_Token> tokens = scan_tokens(String, Size);
+   std::vector<T_Token> tokens;
+
+   scan_tokens(String, Size, tokens);
+
    printf("Tokens %ld\n", tokens.size());
    for (const auto& token : tokens)
    {
-      printf("%.*s", token.Length, token.Lexeme);
+      printf("Type %d: %.*s\n", token.Type, token.Length, token.Lexeme);
    }
 }
 
