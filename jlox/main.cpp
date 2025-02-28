@@ -111,6 +111,87 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
          case '*':
             Tokens.push_back({ STAR, &String[current], 1, line });
             break;
+         case '!':
+            if (String[current+1] == '=')
+            {
+               Tokens.push_back({ BANG_EQUAL, &String[current], 2, line });
+               current++;
+            }
+            else
+            {
+               Tokens.push_back({ BANG, &String[current], 1, line });
+            }
+            break;
+         case '=':
+            if (String[current+1] == '=')
+            {
+               Tokens.push_back({ EQUAL_EQUAL, &String[current], 2, line });
+               current++;
+            }
+            else
+            {
+               Tokens.push_back({ EQUAL, &String[current], 1, line });
+            }
+            break;
+         case '<':
+            if (String[current+1] == '=')
+            {
+               Tokens.push_back({ LESS_EQUAL, &String[current], 2, line });
+               current++;
+            }
+            else
+            {
+               Tokens.push_back({ LESS, &String[current], 1, line });
+            }
+            break;
+         case '>':
+            if (String[current+1] == '=')
+            {
+               Tokens.push_back({ GREATER_EQUAL, &String[current], 2, line });
+               current++;
+            }
+            else
+            {
+               Tokens.push_back({ GREATER, &String[current], 1, line });
+            }
+            break;
+         case '/':
+            if (String[current+1] == '/')
+            {
+               while (current != '\n' && current < Size)
+                  current++;
+            }
+            else
+            {
+               Tokens.push_back({ SLASH, &String[current], 1, line });
+            }
+            break;
+         case '"':
+            current++;
+            start = current;
+            while (String[current] != '"' && current < Size)
+            {
+               if (current == '\n')
+                  line++;
+
+               current++;
+            }
+
+            if (current == Size)
+               print_error("Unterminated string", line);
+            else
+            {
+               Tokens.push_back({ STRING, &String[start], current - start, line });
+            }
+            break;
+         case ' ':
+         case '\t':
+         case '\r':
+            // ignore whitespace
+            break;
+         case '\n':
+            line++;
+            break;
          default:
             print_error("Unexpected character", line);
       }
