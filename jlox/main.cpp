@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
+#include <ctype.h>
 #include "Utility.h"
 
 enum eTokenType
@@ -193,7 +194,21 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
             line++;
             break;
          default:
-            print_error("Unexpected character", line);
+            if (isdigit(String[current]))
+            {
+               start = current;
+               while ((isdigit(String[current]) || (String[current] == '.' && isdigit(String[current+1])) && current < Size)
+               {
+                  current++;
+               }
+
+               Tokens.push_back({ NUMBER, &String[start], current - start, line });
+               current--;
+            }
+            else
+            {
+               print_error("Unexpected character", line);
+            }
       }
 
       current++;
