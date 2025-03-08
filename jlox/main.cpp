@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <vector>
 #include <ctype.h>
+#include <unordered_map>
+#include <string>
 #include "Utility.h"
 
 enum eTokenType
@@ -64,6 +66,7 @@ struct T_Token
 };
 
 bool had_error = false;
+std::unordered_map<std::string, eTokenType> keywords;
 
 void print_error(const char* Message, int Line)
 {
@@ -196,13 +199,30 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
          default:
             if (isdigit(String[current]))
             {
-               start = current;
-               while ((isdigit(String[current]) || (String[current] == '.' && isdigit(String[current+1])) && current < Size)
+               start = current++;
+               while ((isdigit(String[current]) || (String[current] == '.' && isdigit(String[current+1]))) && current < Size)
                {
                   current++;
                }
 
                Tokens.push_back({ NUMBER, &String[start], current - start, line });
+               current--;
+            }
+            else if (isalpha(String[current]))
+            {
+               start = current++;
+               while (isalnum(String[current]) && current < Size)
+               {
+                  current++;
+               }
+
+               std::string token(&String[start], current - start);
+               eTokenType type = IDENTIFIER;
+
+               if (keywords.find(token) != keywords.end())
+                  type = keywords[token];
+
+               Tokens.push_back({ type, &String[start], current - start, line });
                current--;
             }
             else
@@ -271,6 +291,23 @@ void run_prompt()
 
 int main(int argc, char* argv[])
 {
+   keywords["and"] = AND;
+   keywords["class"] = CLASS;
+   keywords["else"] = ELSE;
+   keywords["false"] = FALSE;
+   keywords["for"] = FOR;
+   keywords["fun"] = FUN;
+   keywords["if"] = IF;
+   keywords["nil"] = NIL;
+   keywords["or"] = OR;
+   keywords["print"] = PRINT;
+   keywords["return"] = RETURN;
+   keywords["super"] = SUPER;
+   keywords["this"] = THIS;
+   keywords["true"] = TRUE;
+   keywords["var"] = VAR;
+   keywords["while"] = WHILE;
+
    if (argc > 2)
    {
       printf("Usage: jlox [script]\n");
