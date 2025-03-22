@@ -6,7 +6,26 @@
 #include <string>
 #include "Utility.h"
 
-enum eTokenType
+enum class ExprTypes
+{
+   Binary,
+   Grouping,
+   Literal,
+   Unary,
+};
+
+struct T_Expr
+{
+   ExprTypes Type;
+   void*     Expr;
+   //union
+   //{
+   //   T_BinaryExpr   Binary;
+   //   T_GroupingExpr Grouping;
+   //};
+};
+
+enum TokenType
 {
    // Single-character tokens
    LEFT_PAREN,
@@ -59,14 +78,37 @@ enum eTokenType
 
 struct T_Token
 {
-   eTokenType Type;
-   char*      Lexeme;
-   uint32_t   Length;
-   uint32_t   Line;
+   TokenType Type;
+   char*     Lexeme;
+   uint32_t  Length;
+   uint32_t  Line;
+};
+
+struct T_BinaryExpr
+{
+   T_Expr  Left;
+   T_Expr  Right;
+   T_Token Operator;
+};
+
+struct T_GroupingExpr
+{
+   T_Expr Expression;
+};
+
+struct T_LiteralExpr
+{
+   T_Token Value;
+};
+
+struct T_UnaryExpr
+{
+   T_Expr  Right;
+   T_Token Operator;
 };
 
 bool had_error = false;
-std::unordered_map<std::string, eTokenType> keywords;
+std::unordered_map<std::string, TokenType> keywords;
 
 void print_error(const char* Message, int Line)
 {
@@ -86,77 +128,77 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
       switch (String[current])
       {
          case '(':
-            Tokens.push_back({ LEFT_PAREN, &String[current], 1, line });
+            Tokens.push_back({ TokenType::LEFT_PAREN, &String[current], 1, line });
             break;
          case ')':
-            Tokens.push_back({ RIGHT_PAREN, &String[current], 1, line });
+            Tokens.push_back({ TokenType::RIGHT_PAREN, &String[current], 1, line });
             break;
          case '{':
-            Tokens.push_back({ LEFT_BRACE, &String[current], 1, line });
+            Tokens.push_back({ TokenType::LEFT_BRACE, &String[current], 1, line });
             break;
          case '}':
-            Tokens.push_back({ RIGHT_BRACE, &String[current], 1, line });
+            Tokens.push_back({ TokenType::RIGHT_BRACE, &String[current], 1, line });
             break;
          case ',':
-            Tokens.push_back({ COMMA, &String[current], 1, line });
+            Tokens.push_back({ TokenType::COMMA, &String[current], 1, line });
             break;
          case '.':
-            Tokens.push_back({ DOT, &String[current], 1, line });
+            Tokens.push_back({ TokenType::DOT, &String[current], 1, line });
             break;
          case '-':
-            Tokens.push_back({ MINUS, &String[current], 1, line });
+            Tokens.push_back({ TokenType::MINUS, &String[current], 1, line });
             break;
          case '+':
-            Tokens.push_back({ PLUS, &String[current], 1, line });
+            Tokens.push_back({ TokenType::PLUS, &String[current], 1, line });
             break;
          case ';':
-            Tokens.push_back({ SEMICOLON, &String[current], 1, line });
+            Tokens.push_back({ TokenType::SEMICOLON, &String[current], 1, line });
             break;
          case '*':
-            Tokens.push_back({ STAR, &String[current], 1, line });
+            Tokens.push_back({ TokenType::STAR, &String[current], 1, line });
             break;
          case '!':
             if (String[current+1] == '=')
             {
-               Tokens.push_back({ BANG_EQUAL, &String[current], 2, line });
+               Tokens.push_back({ TokenType::BANG_EQUAL, &String[current], 2, line });
                current++;
             }
             else
             {
-               Tokens.push_back({ BANG, &String[current], 1, line });
+               Tokens.push_back({ TokenType::BANG, &String[current], 1, line });
             }
             break;
          case '=':
             if (String[current+1] == '=')
             {
-               Tokens.push_back({ EQUAL_EQUAL, &String[current], 2, line });
+               Tokens.push_back({ TokenType::EQUAL_EQUAL, &String[current], 2, line });
                current++;
             }
             else
             {
-               Tokens.push_back({ EQUAL, &String[current], 1, line });
+               Tokens.push_back({ TokenType::EQUAL, &String[current], 1, line });
             }
             break;
          case '<':
             if (String[current+1] == '=')
             {
-               Tokens.push_back({ LESS_EQUAL, &String[current], 2, line });
+               Tokens.push_back({ TokenType::LESS_EQUAL, &String[current], 2, line });
                current++;
             }
             else
             {
-               Tokens.push_back({ LESS, &String[current], 1, line });
+               Tokens.push_back({ TokenType::LESS, &String[current], 1, line });
             }
             break;
          case '>':
             if (String[current+1] == '=')
             {
-               Tokens.push_back({ GREATER_EQUAL, &String[current], 2, line });
+               Tokens.push_back({ TokenType::GREATER_EQUAL, &String[current], 2, line });
                current++;
             }
             else
             {
-               Tokens.push_back({ GREATER, &String[current], 1, line });
+               Tokens.push_back({ TokenType::GREATER, &String[current], 1, line });
             }
             break;
          case '/':
@@ -167,7 +209,7 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
             }
             else
             {
-               Tokens.push_back({ SLASH, &String[current], 1, line });
+               Tokens.push_back({ TokenType::SLASH, &String[current], 1, line });
             }
             break;
          case '"':
@@ -185,7 +227,7 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
                print_error("Unterminated string", line);
             else
             {
-               Tokens.push_back({ STRING, &String[start], current - start, line });
+               Tokens.push_back({ TokenType::STRING, &String[start], current - start, line });
             }
             break;
          case ' ':
@@ -205,7 +247,7 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
                   current++;
                }
 
-               Tokens.push_back({ NUMBER, &String[start], current - start, line });
+               Tokens.push_back({ TokenType::NUMBER, &String[start], current - start, line });
                current--;
             }
             else if (isalpha(String[current]))
@@ -217,7 +259,7 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
                }
 
                std::string token(&String[start], current - start);
-               eTokenType type = IDENTIFIER;
+               TokenType type = TokenType::IDENTIFIER;
 
                if (keywords.find(token) != keywords.end())
                   type = keywords[token];
@@ -234,7 +276,7 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
       current++;
    }
 
-   Tokens.push_back({ END_OF_FILE, nullptr, 0, line });
+   Tokens.push_back({ TokenType::END_OF_FILE, nullptr, 0, line });
 }
 
 void run(char* String, uint32_t Size)
