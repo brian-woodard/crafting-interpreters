@@ -1,3 +1,1 @@
-var language = "lox";
-var x = 123;
-var y = 123.456;
+5 * 3 + 1
