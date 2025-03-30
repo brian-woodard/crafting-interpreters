@@ -117,7 +117,7 @@ enum class ExprTypes
    Error,
 };
 
-const char* ExprTypeStr[(int)ExprTypes::Error + 1] =
+const char* ExprTypesStr[(int)ExprTypes::Error + 1] =
 {
    "Binary",
    "Grouping",
@@ -342,6 +342,8 @@ void scan_tokens(char* String, uint32_t Size, std::vector<T_Token>& Tokens)
 ///////////////////////////////////////////////////////////////////////////////
 // Parsing functions
 
+T_Expr parse_expression(const std::vector<T_Token>& Tokens, int& Current);
+
 T_Expr parse_primary(const std::vector<T_Token>& Tokens, int& Current)
 {
    T_Expr expr = {};
@@ -360,16 +362,46 @@ T_Expr parse_primary(const std::vector<T_Token>& Tokens, int& Current)
       expr.Expr = literal;
    }
 
+   if (Tokens[Current].Type == LEFT_PAREN)
+   {
+      T_GroupingExpr* grouping = new T_GroupingExpr;
+
+      grouping->Expression = parse_expression(Tokens, ++Current);
+
+      if (Tokens[Current].Type == RIGHT_PAREN)
+      {
+         expr.Type = ExprTypes::Grouping;
+         expr.Expr = grouping;
+      }
+      else
+      {
+         delete grouping;
+         T_ErrorExpr* error = new T_ErrorExpr;
+
+         error->Error = Tokens[Current];
+         error->Error.Lexeme = (char*)"Expect ')' after expression.";
+         error->Error.Length = strlen("Expect ')' after expression.");
+         
+         expr.Type = ExprTypes::Error;
+         expr.Expr = error;
+      }
+   }
+
    return expr;
 }
 
 T_Expr parse_unary(const std::vector<T_Token>& Tokens, int& Current)
 {
-   // if (match(BANG, MINUS)) {
-   //   Token operator = previous();
-   //   Expr right = unary();
-   //   return new Expr.Unary(operator, right);
-   // }
+   if (Tokens[Current].Type == BANG ||
+       Tokens[Current].Type == MINUS)
+   {
+      T_UnaryExpr* unary = new T_UnaryExpr;
+
+      unary->Operator = Tokens[Current++];
+      unary->Right    = parse_unary(Tokens, Current);
+
+      return { ExprTypes::Unary, unary };
+   }
 
    return parse_primary(Tokens, Current);
 }
@@ -380,11 +412,18 @@ T_Expr parse_factor(const std::vector<T_Token>& Tokens, int& Current)
 
    expr = parse_unary(Tokens, Current);
 
-   // while (match(SLASH, STAR)) {
-   //   Token operator = previous();
-   //   Expr right = unary();
-   //   expr = new Expr.Binary(expr, operator, right);
-   // }
+   while (Tokens[Current].Type == SLASH ||
+          Tokens[Current].Type == STAR)
+   {
+      T_BinaryExpr* binary = new T_BinaryExpr;
+
+      binary->Operator = Tokens[Current++];
+      binary->Left     = expr;
+      binary->Right    = parse_unary(Tokens, Current);
+
+      expr.Type = ExprTypes::Binary;
+      expr.Expr = binary;
+   }
 
    return expr;
 }
@@ -395,11 +434,18 @@ T_Expr parse_term(const std::vector<T_Token>& Tokens, int& Current)
 
    expr = parse_factor(Tokens, Current);
 
-   // while (match(MINUS, PLUS)) {
-   //   Token operator = previous();
-   //   Expr right = factor();
-   //   expr = new Expr.Binary(expr, operator, right);
-   // }
+   while (Tokens[Current].Type == MINUS ||
+          Tokens[Current].Type == PLUS)
+   {
+      T_BinaryExpr* binary = new T_BinaryExpr;
+
+      binary->Operator = Tokens[Current++];
+      binary->Left     = expr;
+      binary->Right    = parse_factor(Tokens, Current);
+
+      expr.Type = ExprTypes::Binary;
+      expr.Expr = binary;
+   }
 
    return expr;
 }
@@ -410,11 +456,20 @@ T_Expr parse_comparison(const std::vector<T_Token>& Tokens, int& Current)
 
    expr = parse_term(Tokens, Current);
 
-   // while (match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)) {
-   //   Token operator = previous();
-   //   Expr right = term();
-   //   expr = new Expr.Binary(expr, operator, right);
-   // }
+   while (Tokens[Current].Type == GREATER ||
+          Tokens[Current].Type == GREATER_EQUAL ||
+          Tokens[Current].Type == LESS ||
+          Tokens[Current].Type == LESS_EQUAL)
+   {
+      T_BinaryExpr* binary = new T_BinaryExpr;
+
+      binary->Operator = Tokens[Current++];
+      binary->Left     = expr;
+      binary->Right    = parse_unary(Tokens, Current);
+
+      expr.Type = ExprTypes::Binary;
+      expr.Expr = binary;
+   }
 
    return expr;
 }
@@ -425,11 +480,18 @@ T_Expr parse_equality(const std::vector<T_Token>& Tokens, int& Current)
 
    expr = parse_comparison(Tokens, Current);
 
-   // while (match(BANG_EQUAL, EQUAL_EQUAL)) {
-   //   Token operator = previous();
-   //   Expr right = comparison();
-   //   expr = new Expr.Binary(expr, operator, right);
-   // }
+   while (Tokens[Current].Type == BANG_EQUAL ||
+          Tokens[Current].Type == EQUAL_EQUAL)
+   {
+      T_BinaryExpr* binary = new T_BinaryExpr;
+
+      binary->Operator = Tokens[Current++];
+      binary->Left     = expr;
+      binary->Right    = parse_comparison(Tokens, Current);
+
+      expr.Type = ExprTypes::Binary;
+      expr.Expr = binary;
+   }
 
    return expr;
 }
@@ -450,7 +512,48 @@ T_Expr parse_tokens(const std::vector<T_Token>& Tokens)
 
 void print_ast(T_Expr Expr)
 {
-   printf("Expr Type %s (%d), Expr %p\n", ExprTypeStr[(int)Expr.Type], Expr.Type, Expr.Expr);
+   if (!Expr.Expr)
+      return;
+
+   printf("(");
+   switch(Expr.Type)
+   {
+      case ExprTypes::Binary:
+      {
+         T_BinaryExpr* binary = (T_BinaryExpr*)Expr.Expr;
+         printf("%.*s", binary->Operator.Length, binary->Operator.Lexeme);
+         print_ast(binary->Left);
+         print_ast(binary->Right);
+         break;
+      }
+      case ExprTypes::Grouping:
+      {
+         T_GroupingExpr* grouping = (T_GroupingExpr*)Expr.Expr;
+         printf("group");
+         print_ast(grouping->Expression);
+         break;
+      }
+      case ExprTypes::Literal:
+      {
+         T_LiteralExpr* literal = (T_LiteralExpr*)Expr.Expr;
+         printf("%.*s", literal->Value.Length, literal->Value.Lexeme);
+         break;
+      }
+      case ExprTypes::Unary:
+      {
+         T_UnaryExpr* unary = (T_UnaryExpr*)Expr.Expr;
+         printf("%.*s", unary->Operator.Length, unary->Operator.Lexeme);
+         print_ast(unary->Right);
+         break;
+      }
+      case ExprTypes::Error:
+      {
+         T_ErrorExpr* error = (T_ErrorExpr*)Expr.Expr;
+         printf("\nERROR: %s at line %d\n", error->Error.Lexeme, error->Error.Line);
+         return;
+      }
+   }
+   printf(")");
 }
 
 void run(char* String, uint32_t Size)
@@ -474,6 +577,7 @@ void run(char* String, uint32_t Size)
 
    // print AST tree
    print_ast(expr);
+   printf("\n");
 }
 
 void run_file(const char* Filename)
